@@ -1,0 +1,37 @@
+version: "3"
+
+services:
+  yugabytedb:
+    image: yugabytedb/yugabyte:2024.1.1.0-b137
+    container_name: yugabyte
+    volumes:
+      - yb_data:/var/lib/yugabytedb
+    ports:
+      - "7000:7000"
+      - "9000:9000"
+      - "15433:15433"
+      - "5433:5433"
+      - "9042:9042"
+    command: |
+      bash -c '
+      mkdir -p /var/ybinit
+      echo "create database $${POSTGRES_DB:-$${POSTGRES_USER}};" > /var/ybinit/01-db.sql
+      echo "create user $${POSTGRES_USER} with password '\''$${POSTGRES_PASSWORD}'\'';" > /var/ybinit/02-usr.sql
+      # start YugabyteDB.
+      bin/yugabyted start --background=false --enable_pg_parity_tech_preview --initial_scripts_dir=/var/ybinit --tserver_flags=ysql_enable_auth=true
+      '
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - db_migration_network
+    restart: unless-stopped
+
+volumes:
+  yb_data:
+    driver: local
+
+networks:
+  db_migration_network:
+    external: true
